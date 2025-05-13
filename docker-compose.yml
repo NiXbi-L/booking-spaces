@@ -8,15 +8,15 @@ services:
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     environment:
-      - DATABASE_URL=postgres://booking_user:booking_pass@host.docker.internal:5432/booking_db
-      - SECRET_KEY=your-secret-key
+      - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@host.docker.internal:5432/${POSTGRES_DB}
+      - SECRET_KEY=${DJANGO_SECRET_KEY}
     networks:
       - booking_network
 
   frontend:
     build: ./frontend
     environment:
-      - REACT_APP_API_URL=http://45.12.145.84/api
+      - REACT_APP_API_URL=${REACT_APP_API_URL}
     networks:
       - booking_network
 
