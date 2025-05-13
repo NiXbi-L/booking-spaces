@@ -4,6 +4,7 @@ WORKDIR /app
 COPY booking_front/package*.json ./
 RUN npm install
 COPY booking_front/ .
+USER node
 RUN npm run build
 
 FROM nginx:1.21
