@@ -14,4 +14,6 @@ COPY . .
 
 RUN cd booking_spaceses && python manage.py collectstatic --noinput
 
+WORKDIR /app/booking_spaceses
+
 EXPOSE 8000
