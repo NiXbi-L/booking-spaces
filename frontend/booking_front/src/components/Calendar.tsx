@@ -205,7 +205,7 @@ const Calendar: React.FC = () => {
   const getImageUrl = (imageUrl: string) => {
     if (!imageUrl) return '';
     if (imageUrl.startsWith('http')) return imageUrl;
-    return `${API_BASE_URL}${imageUrl}`;
+    return `${API_BASE_URL}/media/${imageUrl}`;
   };
 
   const isMyBooking = (booking: Booking) => {

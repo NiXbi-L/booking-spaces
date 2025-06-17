@@ -41,15 +41,19 @@ ALLOWED_HOSTS = get_env_var('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1 [::1]')
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
+    "http://booking.dixer.keenetic.link",
+    "https://booking.dixer.keenetic.link",
     "http://localhost",
     "http://localhost:8080",
     "http://127.0.0.1",
     "http://45.12.145.84",
-    "http://192.168.1.100",
-    "http://192.168.0.100",
     "http://192.168.1.79:8080",
+    "http://192.168.1.79",
     
 ]
+
+CSRF_COOKIE_SECURE = False  # Разрешаем передачу CSRF-токена по HTTP
+SESSION_COOKIE_SECURE = False
 
 # Настройки базы данных
 DB_NAME = get_env_var('POSTGRES_DB', 'booking_spaces')
@@ -97,6 +101,7 @@ INSTALLED_APPS = [
 ]
 
 REST_FRAMEWORK = {
+    'UPLOADED_FILES_USE_URL': False,
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework.authentication.SessionAuthentication',
@@ -217,14 +222,14 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Security settings
-if not DEBUG:
-    CSRF_COOKIE_SECURE = True
-    SESSION_COOKIE_SECURE = True
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-else:
-    CSRF_COOKIE_SECURE = False
-    SESSION_COOKIE_SECURE = False
+# # Security settings
+# if not DEBUG:
+#     CSRF_COOKIE_SECURE = True
+#     SESSION_COOKIE_SECURE = True
+#     SECURE_SSL_REDIRECT = False
+#     SECURE_HSTS_SECONDS = 31536000
+#     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+#     SECURE_HSTS_PRELOAD = True
+# else:
+#     CSRF_COOKIE_SECURE = False
+#     SESSION_COOKIE_SECURE = False

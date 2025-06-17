@@ -21,7 +21,7 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
-      - REACT_APP_API_URL=http://host.docker.internal:8080/api
+      - REACT_APP_API_URL=http://192.168.1.79:80/api
     networks:
       - app-network
     restart: unless-stopped
@@ -35,6 +35,7 @@ services:
       - static_volume:/app/staticfiles
       - ./backend:/app/backend
       - ./frontend/booking_front/build:/usr/share/nginx/html
+      - media_volume:/usr/share/nginx/media
     depends_on:
       - django
       - react
