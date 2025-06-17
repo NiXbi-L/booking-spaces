@@ -12,24 +12,73 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 import os
+import logging
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
+# Проверка и логирование критических переменных окружения
+def get_env_var(var_name, default=None, required=False):
+    value = os.getenv(var_name, default)
+    if required and not value:
+        logger.error(f"Required environment variable {var_name} is not set!")
+        raise ValueError(f"Required environment variable {var_name} is not set!")
+    logger.info(f"Environment variable {var_name}: {value if not var_name.endswith('PASSWORD') else '***'}")
+    return value
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv('DJANGO_SECRET_KEY')
+SECRET_KEY = get_env_var('SECRET_KEY', 'your-secret-key', required=True)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = get_env_var('DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = ['45.12.145.84', 'localhost']
+# Настройки хостов
+ALLOWED_HOSTS = get_env_var('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1 [::1]').split()
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://127.0.0.1",
     "http://45.12.145.84",
-    "http://localhost"
+    "http://192.168.1.100",
+    "http://192.168.0.100",
+    "http://192.168.1.79:8080",
+    
 ]
+
+# Настройки базы данных
+DB_NAME = get_env_var('POSTGRES_DB', 'booking_spaces')
+DB_USER = get_env_var('POSTGRES_USER', 'postgres')
+DB_PASSWORD = get_env_var('POSTGRES_PASSWORD', 'postgres')
+DB_HOST = get_env_var('POSTGRES_HOST', 'host.docker.internal')
+DB_PORT = get_env_var('POSTGRES_PORT', '5432')
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': DB_NAME,
+        'USER': DB_USER,
+        'PASSWORD': DB_PASSWORD,
+        'HOST': DB_HOST,
+        'PORT': DB_PORT,
+    }
+}
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': "booking",
+#         'USER': "postgres",
+#         'PASSWORD': "DXF-ffg105580",
+#         'HOST': "localhost",
+#         'PORT': "5432",
+#     }
+# }
 
 # Application definition
 
@@ -57,29 +106,11 @@ REST_FRAMEWORK = {
     ]
 }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('POSTGRES_DB', 'booking_db'),
-        'USER': os.getenv('POSTGRES_USER', 'booking_user'),
-        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'booking_pass'),
-        'HOST': os.getenv('POSTGRES_HOST', 'booking_pass'),
-        'PORT': '5432',
-    }
-}
-
-STATIC_URL = '/static/'
-STATIC_ROOT = '/app/staticfiles'
-
-MEDIA_URL = '/media/'
-MEDIA_ROOT = '/app/media'
-
 MIDDLEWARE = [
-    'whitenoise.middleware.WhiteNoiseMiddleware',
-    'django.middleware.gzip.GZipMiddleware',
-    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -96,6 +127,7 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
+                'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -140,12 +172,7 @@ CORS_ALLOW_METHODS = [
     'OPTIONS',
 ]
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://45.12.145.84:8080",
-    "http://localhost:8080",
-]
-
-CORS_ALLOWED_ORIGINS = CSRF_TRUSTED_ORIGINS.copy()
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS.copy()
 
 # Для HTTP (на время разработки)
 CSRF_COOKIE_SECURE = False
@@ -175,14 +202,29 @@ USE_I18N = True
 
 USE_TZ = True
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
-STATIC_URL = '/static/'
+# Настройки Whitenoise
+STATIC_URL = '/django_static/'
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+# Для медиафайлов
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+# Важно для работы за прокси
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'http')
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Security settings
+if not DEBUG:
+    CSRF_COOKIE_SECURE = True
+    SESSION_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+else:
+    CSRF_COOKIE_SECURE = False
+    SESSION_COOKIE_SECURE = False

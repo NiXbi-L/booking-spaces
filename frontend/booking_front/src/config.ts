@@ -6,7 +6,7 @@ const getBaseUrl = () => {
   
   // If we're on localhost or 127.0.0.1, use the default backend URL
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000';
+    return process.env.REACT_APP_API_URL || 'http://localhost:8080';
   }
   
   // Otherwise, use the current hostname and port
