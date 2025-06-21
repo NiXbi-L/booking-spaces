@@ -33,7 +33,7 @@ const BookingDialog: React.FC<BookingDialogProps> = ({
   bookings,
   onBookingCreate,
 }) => {
-  const [duration, setDuration] = useState(60);
+  const [duration, setDuration] = useState('01:00');
   const [description, setDescription] = useState('');
   const [startTime, setStartTime] = useState('09:00');
 
@@ -54,7 +54,9 @@ const BookingDialog: React.FC<BookingDialogProps> = ({
     const [hours, minutes] = time.split(':').map(Number);
     const slotStart = new Date(selectedDate);
     slotStart.setHours(hours, minutes, 0, 0);
-    const slotEnd = addMinutes(slotStart, duration);
+    const [durationHours, durationMinutes] = duration.split(':').map(Number);
+    const totalDurationMinutes = durationHours * 60 + durationMinutes;
+    const slotEnd = addMinutes(slotStart, totalDurationMinutes);
 
     return !bookings.some((booking) => {
       const bookingStart = new Date(booking.start_time);
@@ -73,35 +75,50 @@ const BookingDialog: React.FC<BookingDialogProps> = ({
     const [hours, minutes] = startTime.split(':').map(Number);
     const startDateTime = new Date(selectedDate);
     startDateTime.setHours(hours, minutes, 0, 0);
+    const [durationHours, durationMinutes] = duration.split(':').map(Number);
+    const totalDurationMinutes = durationHours * 60 + durationMinutes;
 
     await onBookingCreate({
       space: selectedSpace.id,
       start_time: startDateTime.toISOString(),
-      duration,
+      duration: totalDurationMinutes,
       description,
     });
 
     onClose();
   };
 
+  const calculateEndTime = () => {
+    if (!selectedDate || !startTime || !duration) return '';
+    
+    const [hours, minutes] = startTime.split(':').map(Number);
+    const startDateTime = new Date(selectedDate);
+    startDateTime.setHours(hours, minutes, 0, 0);
+    const [durationHours, durationMinutes] = duration.split(':').map(Number);
+    const totalDurationMinutes = durationHours * 60 + durationMinutes;
+    const endDateTime = addMinutes(startDateTime, totalDurationMinutes);
+    
+    return format(endDateTime, 'HH:mm');
+  };
+
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Create Booking</DialogTitle>
+      <DialogTitle>Создание бронирования</DialogTitle>
       <DialogContent>
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
           <Typography variant="subtitle1" gutterBottom>
-            Date: {selectedDate ? format(selectedDate, 'PPP') : 'No date selected'}
+            Дата: {selectedDate ? format(selectedDate, 'dd.MM.yyyy') : 'Дата не выбрана'}
           </Typography>
           <Typography variant="subtitle1" gutterBottom>
-            Space: {selectedSpace?.name || 'No space selected'}
+            Пространство: {selectedSpace?.name || 'Пространство не выбрано'}
           </Typography>
 
           <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Start Time</InputLabel>
+            <InputLabel>Время начала</InputLabel>
             <Select
               value={startTime}
               onChange={(e) => setStartTime(e.target.value)}
-              label="Start Time"
+              label="Время начала"
             >
               {generateTimeSlots().map((time) => (
                 <MenuItem
@@ -115,23 +132,24 @@ const BookingDialog: React.FC<BookingDialogProps> = ({
             </Select>
           </FormControl>
 
-          <FormControl fullWidth sx={{ mt: 2 }}>
-            <InputLabel>Duration (minutes)</InputLabel>
-            <Select
-              value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
-              label="Duration (minutes)"
-            >
-              <MenuItem value={30}>30 minutes</MenuItem>
-              <MenuItem value={60}>1 hour</MenuItem>
-              <MenuItem value={90}>1.5 hours</MenuItem>
-              <MenuItem value={120}>2 hours</MenuItem>
-            </Select>
-          </FormControl>
+          <TextField
+            fullWidth
+            label="Продолжительность"
+            type="time"
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            inputProps={{ step: 300 }}
+            sx={{ mt: 2 }}
+          />
+
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Время окончания: {calculateEndTime()}
+          </Typography>
 
           <TextField
             fullWidth
-            label="Description"
+            label="Описание (необязательно)"
             multiline
             rows={4}
             value={description}
@@ -141,13 +159,13 @@ const BookingDialog: React.FC<BookingDialogProps> = ({
         </Box>
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>Отмена</Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
           disabled={!selectedDate || !selectedSpace}
         >
-          Create Booking
+          Создать бронирование
         </Button>
       </DialogActions>
     </Dialog>

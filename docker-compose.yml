@@ -19,12 +19,8 @@ services:
     build: 
       context: ./frontend/booking_front
       dockerfile: Dockerfile
-    env_file: .env
     environment:
-      - REACT_APP_API_URL=http://192.168.1.79:80/api
-    networks:
-      - app-network
-    restart: unless-stopped
+      - REACT_APP_API_URL=https://booking.dixer.keenetic.link/api
 
   nginx:
     image: nginx:alpine

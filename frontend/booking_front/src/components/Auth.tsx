@@ -29,9 +29,6 @@ const Auth: React.FC = () => {
 
     try {
       const url = isLogin ? `${API_BASE_URL}/api/auth/login/` : `${API_BASE_URL}/api/auth/register/`;
-      console.log('Sending request to:', url);
-      console.log('Request data:', { username, password });
-      
       const response = await axios({
         method: 'POST',
         url: url,
@@ -46,36 +43,28 @@ const Auth: React.FC = () => {
         timeout: 10000
       });
 
-      console.log('Response:', response);
-
       if (isLogin) {
         if (response.data && response.data.token) {
-          localStorage.setItem('token', response.data.token);
-          window.location.href = '/';
+          await login(username, password);
         } else {
           throw new Error('Токен не получен');
         }
       } else {
-        // После регистрации автоматически входим
-        await handleSubmit(e);
+        // После успешной регистрации сразу логиним пользователя
+        await login(username, password);
       }
     } catch (err) {
-      console.error('Form submission error:', err);
       if (axios.isAxiosError(err)) {
-        console.error('Request details:', {
-          url: err.config?.url,
-          method: err.config?.method,
-          headers: err.config?.headers,
-          data: err.config?.data,
-          response: err.response?.data,
-          status: err.response?.status,
-          statusText: err.response?.statusText
-        });
-
         if (err.code === 'ECONNABORTED') {
           setError('Превышено время ожидания ответа от сервера');
         } else if (err.response?.status === 400) {
-          setError(err.response.data.detail || 'Неверные данные');
+          if (err.response.data?.username) {
+            setError(Array.isArray(err.response.data.username) ? err.response.data.username[0] : err.response.data.username);
+          } else if (err.response.data?.detail) {
+            setError(err.response.data.detail);
+          } else {
+            setError('Неверные данные');
+          }
         } else if (err.response?.status === 401) {
           setError('Неверное имя пользователя или пароль');
         } else if (err.response?.status === 403) {

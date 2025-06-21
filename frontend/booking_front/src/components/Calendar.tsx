@@ -24,7 +24,7 @@ import {
 import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { format, addHours, parseISO, isSameDay } from 'date-fns';
+import { format, addHours, parseISO, isSameDay, addMinutes } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -36,6 +36,8 @@ interface Space {
   name: string;
   description: string;
   image: string;
+  work_start?: string;
+  work_end?: string;
 }
 
 interface Booking {
@@ -58,10 +60,12 @@ const Calendar: React.FC = () => {
   const [openSpacesDialog, setOpenSpacesDialog] = useState(false);
   const [openBookingDialog, setOpenBookingDialog] = useState(false);
   const [startTime, setStartTime] = useState('00:00');
-  const [duration, setDuration] = useState(1);
+  const [duration, setDuration] = useState('01:00');
   const [description, setDescription] = useState('');
   const [error, setError] = useState<string>('');
   const [activeTab, setActiveTab] = useState(0);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteBookingId, setDeleteBookingId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchSpaces();
@@ -101,18 +105,26 @@ const Calendar: React.FC = () => {
     return spaces.find(space => space.id === spaceId);
   };
 
-  const calculateEndTime = (startTime: string, duration: number): string => {
-    return format(addHours(parseISO(startTime), duration / 60), "yyyy-MM-dd'T'HH:mm:ssXXX");
+  const calculateEndTime = (startTime: string, duration: string): string => {
+    const [hours, minutes] = duration.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    return format(addMinutes(parseISO(startTime), totalMinutes), "yyyy-MM-dd'T'HH:mm:ssXXX");
   };
 
   const handleDeleteBooking = async (bookingId: number) => {
+    setDeleteBookingId(bookingId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteBooking = async () => {
+    if (!deleteBookingId) return;
     try {
-      await axios.delete(`${API_BASE_URL}/api/bookings/${bookingId}/`, {
+      await axios.delete(`${API_BASE_URL}/api/bookings/${deleteBookingId}/`, {
         headers: {
           'Authorization': `Token ${token}`
         }
       });
-      setMyBookings(myBookings.filter(booking => booking.id !== bookingId));
+      setMyBookings(myBookings.filter(booking => booking.id !== deleteBookingId));
       if (selectedSpace) {
         const dateStr = format(selectedDate!, 'yyyy-MM-dd');
         const response = await axios.get(`${API_BASE_URL}/api/spaces/${selectedSpace.id}/bookings/?date=${dateStr}`, {
@@ -122,6 +134,8 @@ const Calendar: React.FC = () => {
         });
         setBookings(response.data);
       }
+      setDeleteConfirmOpen(false);
+      setDeleteBookingId(null);
     } catch (err) {
       console.error('Error deleting booking:', err);
       setError('Ошибка при удалении брони');
@@ -168,7 +182,8 @@ const Calendar: React.FC = () => {
 
     try {
       const startDateTime = parseISO(`${format(selectedDate, 'yyyy-MM-dd')}T${startTime}`);
-      const durationMinutes = duration * 60;
+      const [hours, minutes] = duration.split(':').map(Number);
+      const totalDurationMinutes = hours * 60 + minutes;
 
       if (startDateTime < new Date()) {
         setError('Нельзя создать бронь в прошлом');
@@ -178,7 +193,7 @@ const Calendar: React.FC = () => {
       const response = await axios.post(`${API_BASE_URL}/api/bookings/`, {
         space: selectedSpace.id,
         start_time: format(startDateTime, "yyyy-MM-dd'T'HH:mm:ssXXX"),
-        duration: durationMinutes,
+        duration: totalDurationMinutes,
         description: description || '-'
       }, {
         headers: {
@@ -259,7 +274,7 @@ const Calendar: React.FC = () => {
               <Grid container spacing={2}>
                 {myBookings.map((booking) => {
                   const space = getSpaceById(booking.space);
-                  const endTime = calculateEndTime(booking.start_time, booking.duration);
+                  const endTime = calculateEndTime(booking.start_time, `${Math.floor(booking.duration / 60)}:${(booking.duration % 60).toString().padStart(2, '0')}`);
                   return (
                     <Grid item xs={12} sm={6} md={4} key={booking.id}>
                       <Card>
@@ -329,9 +344,11 @@ const Calendar: React.FC = () => {
                     <Typography variant="h6" gutterBottom>
                       {space.name}
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {space.description}
-                    </Typography>
+                    {space.work_start && space.work_end && (
+                      <Typography variant="body2" color="text.secondary">
+                        Часы работы: {space.work_start} — {space.work_end}
+                      </Typography>
+                    )}
                   </CardContent>
                 </Card>
               </Grid>
@@ -357,7 +374,7 @@ const Calendar: React.FC = () => {
               <Grid container spacing={1}>
                 {bookings.map((booking) => {
                   const startTime = format(parseISO(booking.start_time), 'HH:mm');
-                  const endTime = format(parseISO(calculateEndTime(booking.start_time, booking.duration)), 'HH:mm');
+                  const endTime = format(parseISO(calculateEndTime(booking.start_time, `${Math.floor(booking.duration / 60)}:${(booking.duration % 60).toString().padStart(2, '0')}`)), 'HH:mm');
                   const isMyBookingItem = isMyBooking(booking);
                   return (
                     <Grid item xs={12} sm={6} md={4} key={booking.id}>
@@ -414,11 +431,12 @@ const Calendar: React.FC = () => {
               sx={{ width: isMobile ? '100%' : '50%' }}
             />
             <TextField
-              label="Длительность (часы)"
-              type="number"
+              label="Продолжительность"
+              type="time"
               value={duration}
-              onChange={(e) => setDuration(Number(e.target.value))}
-              InputProps={{ inputProps: { min: 1, max: 24 } }}
+              onChange={(e) => setDuration(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ step: 300 }}
               sx={{ width: isMobile ? '100%' : '50%' }}
             />
           </Box>
@@ -434,8 +452,9 @@ const Calendar: React.FC = () => {
           />
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Время окончания: {selectedDate && startTime && 
-              format(addHours(parseISO(`${format(selectedDate, 'yyyy-MM-dd')}T${startTime}`), duration), 'HH:mm')}
+            Время окончания: {selectedDate && startTime && duration && 
+              format(addMinutes(parseISO(`${format(selectedDate, 'yyyy-MM-dd')}T${startTime}`), 
+                parseInt(duration.split(':')[0]) * 60 + parseInt(duration.split(':')[1])), 'HH:mm')}
           </Typography>
         </DialogContent>
         <DialogActions sx={{ p: 2 }}>
@@ -456,8 +475,104 @@ const Calendar: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      {/* Диалог подтверждения удаления брони */}
+      <Dialog open={deleteConfirmOpen} onClose={() => setDeleteConfirmOpen(false)}>
+        <DialogTitle>Подтверждение удаления</DialogTitle>
+        <DialogContent>
+          <Typography>Вы уверены, что хотите удалить эту бронь?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>Отмена</Button>
+          <Button onClick={confirmDeleteBooking} color="error" variant="contained">
+            Удалить
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
 
-export default Calendar; 
+export default Calendar;
+
+export const handleCreateBooking = async ({
+  selectedSpace,
+  selectedDate,
+  startTime,
+  duration,
+  description,
+  token,
+  setBookings,
+  setMyBookings,
+  setOpenBookingDialog,
+  setError,
+  setDescription
+}: any) => {
+  if (!selectedSpace || !selectedDate) return;
+  try {
+    const startDateTime = parseISO(`${format(selectedDate, 'yyyy-MM-dd')}T${startTime}`);
+    const [hours, minutes] = duration.split(':').map(Number);
+    const totalDurationMinutes = hours * 60 + minutes;
+    if (startDateTime < new Date()) {
+      setError('Нельзя создать бронь в прошлом');
+      return;
+    }
+    const response = await axios.post(`${API_BASE_URL}/api/bookings/`, {
+      space: selectedSpace.id,
+      start_time: format(startDateTime, "yyyy-MM-dd'T'HH:mm:ssXXX"),
+      duration: totalDurationMinutes,
+      description: description || '-'
+    }, {
+      headers: {
+        'Authorization': `Token ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+    setBookings((prev: any) => [...prev, response.data]);
+    setMyBookings((prev: any) => [...prev, response.data]);
+    setOpenBookingDialog(false);
+    setError('');
+    setDescription('');
+  } catch (err) {
+    if (axios.isAxiosError(err) && err.response?.data?.non_field_errors) {
+      setError(err.response.data.non_field_errors[0]);
+    } else {
+      setError('Ошибка при создании брони');
+    }
+  }
+};
+
+export const handleDeleteBooking = async ({
+  bookingId,
+  token,
+  setMyBookings,
+  setBookings,
+  selectedSpace,
+  selectedDate,
+  setError
+}: any) => {
+  try {
+    await axios.delete(`${API_BASE_URL}/api/bookings/${bookingId}/`, {
+      headers: {
+        'Authorization': `Token ${token}`
+      }
+    });
+    setMyBookings((prev: any) => prev.filter((booking: any) => booking.id !== bookingId));
+    if (selectedSpace && selectedDate) {
+      const dateStr = format(selectedDate, 'yyyy-MM-dd');
+      const response = await axios.get(`${API_BASE_URL}/api/spaces/${selectedSpace.id}/bookings/?date=${dateStr}`, {
+        headers: {
+          'Authorization': `Token ${token}`
+        }
+      });
+      setBookings(response.data);
+    }
+  } catch (err) {
+    setError('Ошибка при удалении брони');
+  }
+};
+
+export const calculateEndTime = (startTime: string, duration: string): string => {
+  const [hours, minutes] = duration.split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes;
+  return format(addMinutes(parseISO(startTime), totalMinutes), "yyyy-MM-dd'T'HH:mm:ssXXX");
+}; 

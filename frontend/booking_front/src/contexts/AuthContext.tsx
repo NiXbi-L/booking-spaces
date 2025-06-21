@@ -8,6 +8,9 @@ const API_URL = `${API_BASE_URL}/api`;
 interface AuthContextType {
   isAuthenticated: boolean;
   token: string | null;
+  username: string | null;
+  isSuperuser: boolean;
+  isAdmin: boolean;
   login: (username: string, password: string) => Promise<void>;
   register: (username: string, password: string) => Promise<void>;
   logout: () => void;
@@ -16,6 +19,9 @@ interface AuthContextType {
 export const AuthContext = createContext<AuthContextType>({
   isAuthenticated: false,
   token: null,
+  username: null,
+  isSuperuser: false,
+  isAdmin: false,
   login: async () => {},
   register: async () => {},
   logout: () => {},
@@ -32,19 +38,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [token, setToken] = useState<string | null>(() => {
     return localStorage.getItem('token');
   });
+  const [username, setUsername] = useState<string | null>(() => {
+    return localStorage.getItem('username');
+  });
+  const [isSuperuser, setIsSuperuser] = useState<boolean>(false);
+  const [isAdmin, setIsAdmin] = useState<boolean>(false);
+
+  const fetchUser = async (authToken: string) => {
+    try {
+      const response = await axios.get(`${API_URL}/auth/me/`, {
+        headers: { Authorization: `Token ${authToken}` },
+      });
+      setUsername(response.data.username);
+      localStorage.setItem('username', response.data.username);
+      setIsSuperuser(!!response.data.is_superuser);
+      setIsAdmin(!!response.data.is_admin);
+    } catch (e) {
+      console.error('Failed to fetch user', e);
+      // Если токен невалидный, выходим
+      logout();
+    }
+  };
 
   const login = async (username: string, password: string) => {
     try {
-      console.log('Login attempt with:', { username, password });
-      console.log('Sending POST request to:', `${API_URL}/auth/login/`);
-      
       const response = await authService.login({ username, password });
-      console.log('Login response:', response);
-      
+
       if (response.data && response.data.token) {
-        localStorage.setItem('token', response.data.token);
-        setToken(response.data.token);
+        const authToken = response.data.token;
+        localStorage.setItem('token', authToken);
+        setToken(authToken);
         setIsAuthenticated(true);
+        await fetchUser(authToken); // Получаем данные пользователя
       } else {
         throw new Error('Токен не получен');
       }
@@ -55,7 +80,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           url: error.config?.url,
           method: error.config?.method,
           headers: error.config?.headers,
-          data: error.config?.data
+          data: error.config?.data,
         });
       }
       throw new Error('Ошибка входа. Проверьте правильность данных.');
@@ -75,12 +100,25 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('username');
     setToken(null);
+    setUsername(null);
     setIsAuthenticated(false);
+    setIsSuperuser(false); // Сбрасываем при выходе
+    setIsAdmin(false); // Сбрасываем при выходе
   };
 
+  useEffect(() => {
+    const checkUser = async () => {
+      if (token) {
+        await fetchUser(token);
+      }
+    };
+    checkUser();
+  }, [token]);
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, token, login, register, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, token, username, isSuperuser, isAdmin, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

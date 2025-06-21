@@ -34,10 +34,12 @@ def get_env_var(var_name, default=None, required=False):
 SECRET_KEY = get_env_var('SECRET_KEY', 'your-secret-key', required=True)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = get_env_var('DEBUG', 'False').lower() == 'true'
+DEBUG_str = get_env_var('DEBUG', 'False')
+DEBUG = DEBUG_str.lower() == 'true' if DEBUG_str else False
 
 # Настройки хостов
-ALLOWED_HOSTS = get_env_var('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1 [::1]').split()
+ALLOWED_HOSTS_str = get_env_var('DJANGO_ALLOWED_HOSTS', 'localhost 127.0.0.1 [::1]')
+ALLOWED_HOSTS = ALLOWED_HOSTS_str.split() if ALLOWED_HOSTS_str else []
 CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOWED_ORIGINS = [

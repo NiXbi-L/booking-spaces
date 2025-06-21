@@ -12,18 +12,22 @@ import {
 } from '@mui/material';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { useNavigate } from 'react-router-dom';
 
 interface Space {
   id: number;
   name: string;
   description: string;
   image: string;
+  work_start?: string;
+  work_end?: string;
 }
 
 const Spaces: React.FC = () => {
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [error, setError] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchSpaces = async () => {
@@ -79,7 +83,10 @@ const Spaces: React.FC = () => {
       <Grid container spacing={3}>
         {spaces.map((space) => (
           <Grid item xs={12} sm={6} md={4} key={space.id}>
-            <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <Card 
+              sx={{ height: '100%', display: 'flex', flexDirection: 'column', cursor: 'pointer' }}
+              onClick={() => navigate(`/spaces/${space.id}`)}
+            >
               {space.image && (
                 <CardMedia
                   component="img"
@@ -96,9 +103,11 @@ const Spaces: React.FC = () => {
                 <Typography gutterBottom variant="h5" component="div">
                   {space.name}
                 </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {space.description || 'Нет описания'}
-                </Typography>
+                {space.work_start && space.work_end && (
+                  <Typography variant="body2" color="text.secondary">
+                    Часы работы: {space.work_start} — {space.work_end}
+                  </Typography>
+                )}
               </CardContent>
             </Card>
           </Grid>

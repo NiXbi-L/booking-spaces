@@ -66,3 +66,9 @@ class UserBookingsListView(generics.ListAPIView):
     def get_queryset(self):
         # Возвращает только бронирования текущего пользователя
         return Booking.objects.filter(user=self.request.user)
+
+
+class SpaceDetailView(generics.RetrieveAPIView):
+    queryset = Space.objects.all()
+    serializer_class = SpaceSerializer
+    permission_classes = [permissions.AllowAny]

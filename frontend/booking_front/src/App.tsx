@@ -2,12 +2,13 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
-import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemText, useMediaQuery, Container } from '@mui/material';
+import { Box, AppBar, Toolbar, Typography, IconButton, Drawer, List, ListItem, ListItemText, useMediaQuery, Container, Button } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import { useAuth } from './contexts/AuthContext';
 import Auth from './components/Auth';
 import Calendar from './components/Calendar';
 import Spaces from './components/Spaces';
+import SpaceDetail from './components/SpaceDetail';
 
 const theme = createTheme({
   palette: {
@@ -35,7 +36,7 @@ const theme = createTheme({
 });
 
 const App: React.FC = () => {
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, logout, username } = useAuth();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
@@ -44,8 +45,8 @@ const App: React.FC = () => {
   };
 
   const menuItems = [
-    { text: 'Calendar', path: '/' },
-    { text: 'Spaces', path: '/spaces' },
+    { text: 'Календарь', path: '/' },
+    { text: 'Пространства', path: '/spaces' },
   ];
 
   const drawer = (
@@ -63,9 +64,19 @@ const App: React.FC = () => {
         </ListItem>
       ))}
       {isAuthenticated && (
-        <ListItem button onClick={logout} sx={{ py: 2 }}>
-          <ListItemText primary="Logout" />
-        </ListItem>
+        <>
+          <ListItem sx={{ py: 1, display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <Typography variant="subtitle1" color="text.primary">{username}</Typography>
+            <Typography
+              variant="caption"
+              color="error"
+              sx={{ mt: 0.5, textDecoration: 'underline', cursor: 'pointer' }}
+              onClick={logout}
+            >
+              Выйти
+            </Typography>
+          </ListItem>
+        </>
       )}
     </List>
   );
@@ -75,7 +86,7 @@ const App: React.FC = () => {
       <CssBaseline />
       <Router>
         <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', width: '100%' }}>
-          <AppBar position="static">
+          <AppBar position="fixed">
             <Toolbar>
               {isMobile && (
                 <IconButton
@@ -92,7 +103,7 @@ const App: React.FC = () => {
                 Booking System
               </Typography>
               {!isMobile && (
-                <Box sx={{ display: 'flex' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   {menuItems.map((item) => (
                     <Typography
                       key={item.text}
@@ -110,23 +121,24 @@ const App: React.FC = () => {
                     </Typography>
                   ))}
                   {isAuthenticated && (
-                    <Typography
-                      variant="h6"
-                      component="div"
-                      onClick={logout}
-                      sx={{
-                        color: 'white',
-                        mx: 2,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Logout
-                    </Typography>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', ml: 2 }}>
+                      <Typography variant="subtitle1" color="white" sx={{ fontWeight: 500 }}>{username}</Typography>
+                      <Typography
+                        variant="caption"
+                        color="error"
+                        sx={{ mt: 0.5, textDecoration: 'underline', cursor: 'pointer' }}
+                        onClick={logout}
+                      >
+                        Выйти
+                      </Typography>
+                    </Box>
                   )}
                 </Box>
               )}
             </Toolbar>
           </AppBar>
+
+          <Box sx={{ height: { xs: 56, sm: 64 } }} />
 
           <Drawer
             variant="temporary"
@@ -187,6 +199,16 @@ const App: React.FC = () => {
                     <Navigate to="/auth" replace />
                   )
                 } 
+              />
+              <Route 
+                path="/spaces/:id" 
+                element={
+                  isAuthenticated ? (
+                    <SpaceDetail />
+                  ) : (
+                    <Navigate to="/auth" replace />
+                  )
+                }
               />
             </Routes>
           </Container>
