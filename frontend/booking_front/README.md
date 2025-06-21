@@ -316,15 +316,313 @@ server {
 
 ## 🔒 Безопасность
 
-### Аутентификация
-- Токен-based аутентификация
-- Автоматическое обновление токенов
-- Защищенные маршруты
+### ⚠️ ВАЖНО: Текущий механизм аутентификации
 
-### Валидация данных
-- Валидация форм на клиенте
-- Проверка типов TypeScript
-- Санитизация пользовательского ввода
+**Текущая реализация предназначена только для демонстрации и разработки!**
+
+Frontend использует простую токен-аутентификацию, которая **НЕ ПОДХОДИТ** для продакшена без дополнительных мер безопасности.
+
+### 🔐 Рекомендации для продакшена
+
+#### 1. **JWT токены с автоматическим обновлением**
+
+```typescript
+// services/auth.ts
+interface AuthTokens {
+  access: string;
+  refresh: string;
+}
+
+class AuthService {
+  private accessToken: string | null = null;
+  private refreshToken: string | null = null;
+
+  async login(credentials: LoginCredentials): Promise<void> {
+    const response = await api.post('/api/token/', credentials);
+    this.setTokens(response.data);
+  }
+
+  async refreshAccessToken(): Promise<void> {
+    if (!this.refreshToken) throw new Error('No refresh token');
+    
+    const response = await api.post('/api/token/refresh/', {
+      refresh: this.refreshToken
+    });
+    this.accessToken = response.data.access;
+  }
+
+  private setTokens(tokens: AuthTokens): void {
+    this.accessToken = tokens.access;
+    this.refreshToken = tokens.refresh;
+    localStorage.setItem('refreshToken', tokens.refresh);
+  }
+}
+```
+
+#### 2. **Интерцептор для автоматического обновления токенов**
+
+```typescript
+// services/api.ts
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_BASE_URL,
+});
+
+// Интерцептор для добавления токена
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+// Интерцептор для обработки ошибок 401
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        await authService.refreshAccessToken();
+        const newToken = localStorage.getItem('accessToken');
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        // Перенаправление на страницу входа
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+```
+
+#### 3. **Защищенные маршруты**
+
+```typescript
+// components/ProtectedRoute.tsx
+import React from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  requireAuth?: boolean;
+  requireAdmin?: boolean;
+}
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
+  requireAuth = true,
+  requireAdmin = false,
+}) => {
+  const { user, isAuthenticated } = useAuth();
+  const location = useLocation();
+
+  if (requireAuth && !isAuthenticated) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (requireAdmin && !user?.is_superuser) {
+    return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+```
+
+#### 4. **Валидация форм на клиенте**
+
+```typescript
+// utils/validation.ts
+import * as yup from 'yup';
+
+export const loginSchema = yup.object({
+  username: yup
+    .string()
+    .required('Имя пользователя обязательно')
+    .min(3, 'Минимум 3 символа'),
+  password: yup
+    .string()
+    .required('Пароль обязателен')
+    .min(8, 'Минимум 8 символов')
+    .matches(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      'Пароль должен содержать буквы и цифры'
+    ),
+});
+
+export const bookingSchema = yup.object({
+  start_time: yup
+    .date()
+    .required('Время начала обязательно')
+    .min(new Date(), 'Нельзя бронировать в прошлом'),
+  duration: yup
+    .number()
+    .required('Продолжительность обязательна')
+    .min(30, 'Минимум 30 минут')
+    .max(480, 'Максимум 8 часов'),
+  description: yup
+    .string()
+    .max(500, 'Максимум 500 символов'),
+});
+```
+
+#### 5. **Безопасное хранение токенов**
+
+```typescript
+// utils/storage.ts
+class SecureStorage {
+  private static readonly ACCESS_TOKEN_KEY = 'accessToken';
+  private static readonly REFRESH_TOKEN_KEY = 'refreshToken';
+
+  static setAccessToken(token: string): void {
+    // В продакшене используйте httpOnly cookies вместо localStorage
+    sessionStorage.setItem(this.ACCESS_TOKEN_KEY, token);
+  }
+
+  static getAccessToken(): string | null {
+    return sessionStorage.getItem(this.ACCESS_TOKEN_KEY);
+  }
+
+  static removeTokens(): void {
+    sessionStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+  }
+
+  static isTokenExpired(token: string): boolean {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload.exp * 1000 < Date.now();
+    } catch {
+      return true;
+    }
+  }
+}
+```
+
+### 🛡️ Дополнительные меры безопасности
+
+#### CSP (Content Security Policy)
+```html
+<!-- public/index.html -->
+<meta http-equiv="Content-Security-Policy" 
+      content="default-src 'self'; 
+               script-src 'self' 'unsafe-inline' 'unsafe-eval'; 
+               style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; 
+               font-src 'self' https://fonts.gstatic.com;">
+```
+
+#### Защита от XSS
+```typescript
+// utils/sanitize.ts
+import DOMPurify from 'dompurify';
+
+export const sanitizeHtml = (dirty: string): string => {
+  return DOMPurify.sanitize(dirty, {
+    ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a'],
+    ALLOWED_ATTR: ['href'],
+  });
+};
+
+export const sanitizeInput = (input: string): string => {
+  return input.replace(/[<>]/g, '');
+};
+```
+
+#### Rate Limiting на клиенте
+```typescript
+// utils/rateLimit.ts
+class RateLimiter {
+  private attempts: Map<string, number[]> = new Map();
+  private readonly maxAttempts: number;
+  private readonly windowMs: number;
+
+  constructor(maxAttempts: number = 5, windowMs: number = 60000) {
+    this.maxAttempts = maxAttempts;
+    this.windowMs = windowMs;
+  }
+
+  canAttempt(key: string): boolean {
+    const now = Date.now();
+    const attempts = this.attempts.get(key) || [];
+    
+    // Удаляем старые попытки
+    const recentAttempts = attempts.filter(time => now - time < this.windowMs);
+    
+    if (recentAttempts.length >= this.maxAttempts) {
+      return false;
+    }
+    
+    recentAttempts.push(now);
+    this.attempts.set(key, recentAttempts);
+    return true;
+  }
+}
+```
+
+### 🔍 Мониторинг безопасности
+
+#### Логирование событий безопасности
+```typescript
+// utils/securityLogger.ts
+class SecurityLogger {
+  static logLoginAttempt(username: string, success: boolean, ip?: string): void {
+    const event = {
+      type: 'login_attempt',
+      username,
+      success,
+      ip,
+      timestamp: new Date().toISOString(),
+      userAgent: navigator.userAgent,
+    };
+    
+    // Отправка в систему мониторинга
+    this.sendToMonitoring(event);
+  }
+
+  static logSuspiciousActivity(activity: string, details: any): void {
+    const event = {
+      type: 'suspicious_activity',
+      activity,
+      details,
+      timestamp: new Date().toISOString(),
+    };
+    
+    console.warn('Suspicious activity detected:', event);
+    this.sendToMonitoring(event);
+  }
+
+  private static sendToMonitoring(event: any): void {
+    // Интеграция с системами мониторинга (Sentry, LogRocket, etc.)
+    if (process.env.NODE_ENV === 'production') {
+      // Отправка в систему мониторинга
+    }
+  }
+}
+```
+
+### 📋 Чек-лист безопасности для продакшена
+
+- [ ] Заменить токен-аутентификацию на JWT
+- [ ] Добавить автоматическое обновление токенов
+- [ ] Реализовать защищенные маршруты
+- [ ] Добавить валидацию форм
+- [ ] Настроить CSP заголовки
+- [ ] Добавить защиту от XSS
+- [ ] Реализовать rate limiting на клиенте
+- [ ] Настроить логирование безопасности
+- [ ] Использовать HTTPS
+- [ ] Регулярно обновлять зависимости
+
+### Аутентификация
 
 ## 📊 Производительность
 
