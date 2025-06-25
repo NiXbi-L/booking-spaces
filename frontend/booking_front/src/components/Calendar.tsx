@@ -94,7 +94,11 @@ const Calendar: React.FC = () => {
         }
       });
       console.log('My bookings response:', response.data);
-      setMyBookings(response.data);
+      // Сортировка броней по времени начала (от ранних к поздним)
+      const sortedBookings = response.data.sort((a: Booking, b: Booking) => 
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      );
+      setMyBookings(sortedBookings);
     } catch (err) {
       console.error('Error fetching my bookings:', err);
       setError('Ошибка при загрузке ваших броней');
@@ -132,7 +136,11 @@ const Calendar: React.FC = () => {
             'Authorization': `Token ${token}`
           }
         });
-        setBookings(response.data);
+        // Сортировка броней по времени начала (от ранних к поздним)
+        const sortedBookings = response.data.sort((a: Booking, b: Booking) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+        setBookings(sortedBookings);
       }
       setDeleteConfirmOpen(false);
       setDeleteBookingId(null);
@@ -170,7 +178,11 @@ const Calendar: React.FC = () => {
           'Authorization': `Token ${token}`
         }
       });
-      setBookings(response.data);
+      // Сортировка броней по времени начала (от ранних к поздним)
+      const sortedBookings = response.data.sort((a: Booking, b: Booking) => 
+        new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+      );
+      setBookings(sortedBookings);
     } catch (err) {
       console.error('Error fetching bookings:', err);
       setError('Ошибка при загрузке броней');
@@ -202,8 +214,8 @@ const Calendar: React.FC = () => {
         }
       });
 
-      setBookings([...bookings, response.data]);
-      setMyBookings([...myBookings, response.data]);
+      setBookings((prev: any) => [...prev, response.data]);
+      setMyBookings((prev: any) => [...prev, response.data]);
       setOpenBookingDialog(false);
       setError('');
       setDescription('');

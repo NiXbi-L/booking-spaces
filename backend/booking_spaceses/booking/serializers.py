@@ -22,6 +22,10 @@ class BookingSerializer(serializers.ModelSerializer):
         from django.utils import timezone
         from datetime import timedelta, time
 
+        user = self.context['request'].user
+        is_superuser = user.is_superuser  # Проверка суперпользователя
+
+        # Базовые проверки для всех пользователей
         if data['start_time'] < timezone.now():
             raise serializers.ValidationError("Booking cannot be in the past.")
 
@@ -30,7 +34,7 @@ class BookingSerializer(serializers.ModelSerializer):
         duration = data['duration']
         end_time = start_time + timedelta(minutes=duration)
 
-        # Проверка на пересечение слотов с разрывом 15 минут
+        # Проверка пересечений слотов (обязательна для всех)
         min_gap = timedelta(minutes=15)
         overlapping = Booking.objects.filter(
             space=space,
@@ -42,25 +46,26 @@ class BookingSerializer(serializers.ModelSerializer):
         if overlapping.exists():
             raise serializers.ValidationError("Time slot is already booked or too close to another booking (min 15 min gap required).")
 
-        # Проверка на рабочие часы
-        work_start = space.work_start
-        work_end = space.work_end
-        if not (work_start <= start_time.time() < work_end and work_start < end_time.time() <= work_end):
-            raise serializers.ValidationError(f"Booking must be within working hours: {work_start} - {work_end}.")
+        # Для НЕ-суперпользователей применяем дополнительные ограничения
+        if not is_superuser:
+            # Проверка рабочих часов
+            work_start = space.work_start
+            work_end = space.work_end
+            if not (work_start <= start_time.time() < work_end and work_start < end_time.time() <= work_end):
+                raise serializers.ValidationError(f"Booking must be within working hours: {work_start} - {work_end}.")
 
-        # Проверка на максимальное количество броней пользователя
-        user = self.context['request'].user
-        active_bookings = Booking.objects.filter(
-            user=user,
-            space=space,  # Только для этого пространства
-            start_time__gt=timezone.now()  # Только будущие брони
-        ).count()
-        if not self.instance and active_bookings >= 2:
-            raise serializers.ValidationError("You cannot have more than 2 active bookings for this space.")
+            # Проверка лимита бронирований
+            active_bookings = Booking.objects.filter(
+                user=user,
+                space=space,
+                start_time__gt=timezone.now()
+            ).count()
+            if not self.instance and active_bookings >= 2:
+                raise serializers.ValidationError("You cannot have more than 2 active bookings for this space.")
 
-        # Проверка на максимальную длительность слота
-        if duration > 120:
-            raise serializers.ValidationError("Booking duration cannot exceed 2 hours (120 minutes).")
+            # Проверка длительности
+            if duration > 120:
+                raise serializers.ValidationError("Booking duration cannot exceed 2 hours (120 minutes).")
 
         return data
 

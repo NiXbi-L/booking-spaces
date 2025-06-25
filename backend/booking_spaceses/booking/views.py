@@ -56,7 +56,7 @@ class SpaceBookingsView(generics.ListAPIView):
             space_id=space_id,
             start_time__gte=start,
             start_time__lte=end
-        )
+        ).order_by('start_time')
 
 
 class UserBookingsListView(generics.ListAPIView):
@@ -64,8 +64,8 @@ class UserBookingsListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        # Возвращает только бронирования текущего пользователя
-        return Booking.objects.filter(user=self.request.user)
+        # Возвращает только бронирования текущего пользователя, отсортированные по времени
+        return Booking.objects.filter(user=self.request.user).order_by('start_time')
 
 
 class SpaceDetailView(generics.RetrieveAPIView):

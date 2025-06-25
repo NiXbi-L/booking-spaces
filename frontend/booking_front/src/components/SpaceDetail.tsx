@@ -70,7 +70,11 @@ const SpaceDetail: React.FC = () => {
         const response = await axios.get(`${API_BASE_URL}/api/bookings/my/`, {
           headers: token ? { 'Authorization': `Token ${token}` } : {}
         });
-        setMyBookings(response.data);
+        // Сортировка броней по времени начала (от ранних к поздним)
+        const sortedBookings = response.data.sort((a: any, b: any) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+        setMyBookings(sortedBookings);
       } catch (err) {
         // ignore
       }
@@ -91,7 +95,11 @@ const SpaceDetail: React.FC = () => {
         const response = await axios.get(`${API_BASE_URL}/api/spaces/${space.id}/bookings/?date=${dateStr}`, {
           headers: token ? { 'Authorization': `Token ${token}` } : {}
         });
-        setBookings(response.data);
+        // Сортировка броней по времени начала (от ранних к поздним)
+        const sortedBookings = response.data.sort((a: any, b: any) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+        setBookings(sortedBookings);
       } catch (err) {
         setBookings([]);
       }
@@ -134,7 +142,11 @@ const SpaceDetail: React.FC = () => {
         const response = await axios.get(`${API_BASE_URL}/api/spaces/${space.id}/bookings/?date=${dateStr}`, {
           headers: token ? { 'Authorization': `Token ${token}` } : {}
         });
-        setBookings(response.data);
+        // Сортировка броней по времени начала (от ранних к поздним)
+        const sortedBookings = response.data.sort((a: any, b: any) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+        setBookings(sortedBookings);
       }
     } catch (err: any) {
       if (axios.isAxiosError(err) && err.response?.data?.non_field_errors) {
@@ -182,7 +194,11 @@ const SpaceDetail: React.FC = () => {
         const response = await axios.get(`${API_BASE_URL}/api/spaces/${space.id}/bookings/?date=${dateStr}`, {
           headers: token ? { 'Authorization': `Token ${token}` } : {}
         });
-        setAdminBookings(response.data);
+        // Сортировка броней по времени начала (от ранних к поздним)
+        const sortedBookings = response.data.sort((a: any, b: any) => 
+          new Date(a.start_time).getTime() - new Date(b.start_time).getTime()
+        );
+        setAdminBookings(sortedBookings);
       } catch {
         setAdminBookings([]);
       } finally {

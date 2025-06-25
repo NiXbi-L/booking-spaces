@@ -25,6 +25,9 @@ class Booking(models.Model):
     end_time = models.DateTimeField(editable=False)
     description = models.TextField()
 
+    class Meta:
+        ordering = ['start_time']  # Сортировка по умолчанию от ранних к поздним
+
     def save(self, *args, **kwargs):
         from datetime import timedelta
         self.end_time = self.start_time + timedelta(minutes=self.duration)
