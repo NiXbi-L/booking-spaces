@@ -105,6 +105,23 @@ def register_user(request):
     # Активация только после подтверждения email
 ```
 
+## 🖼️ Галерея
+
+Ниже представлены скриншоты интерфейса сайта:
+
+<p align="center">
+  <img src="screenshots/browser_vj9rsSEcZG.png" alt="Скриншот 1" width="350"/>
+  <img src="screenshots/browser_ep0tJqIM9r.png" alt="Скриншот 2" width="350"/>
+  <img src="screenshots/browser_rNQP0KBXTN.png" alt="Скриншот 3" width="350"/>
+  <img src="screenshots/browser_GYUjHrFTZq.png" alt="Скриншот 4" width="350"/>
+  <img src="screenshots/browser_12nMQBsxvl.png" alt="Скриншот 5" width="350"/>
+  <img src="screenshots/browser_rzfLqCPiB0.png" alt="Скриншот 6" width="350"/>
+  <img src="screenshots/browser_JnB8Am6ZFv.png" alt="Скриншот 7" width="350"/>
+  <img src="screenshots/browser_d2FcaYVJnV.png" alt="Скриншот 8" width="350"/>
+  <img src="screenshots/browser_0w0ZRvxDIe.png" alt="Скриншот 9" width="350"/>
+  <img src="screenshots/browser_EjFYkrIYWY.png" alt="Скриншот 10" width="350"/>
+</p>
+
 ## 🏗️ Архитектура
 
 Проект построен на современном стеке технологий:

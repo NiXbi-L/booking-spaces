@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { User, Space, Booking, AuthResponse } from '../types';
 
-const API_URL = process.env.REACT_APP_API_URL || 'https://booking.dixer.keenetic.link/api';
+const API_URL = process.env.REACT_APP_API_URL || 'http://192.168.1.79/api';
 
 const api = axios.create({
   baseURL: API_URL,
